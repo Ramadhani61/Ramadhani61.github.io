@@ -1,0 +1,459 @@
+<template>
+  <div>
+    <v-dialog
+      persistent
+      v-model="dialog"
+      scrollable
+      content-class="form-dialog"
+    >
+      <v-form v-model="isValid">
+        <v-card class="rounded-card">
+          <v-toolbar flat class="mx-6 toolbar-form">
+            <v-spacer></v-spacer>
+            {{ formTitle }}
+            <v-spacer></v-spacer>
+            <v-btn icon @click="dialog = false">
+              <v-icon> mdi-close </v-icon>
+            </v-btn>
+          </v-toolbar>
+          <v-divider></v-divider>
+          <v-card-text>
+            <div>
+              <v-row>
+                <v-col cols="12" md="6" sm="6">
+                  <v-subheader class="font-weight-bold"
+                    >DETAIL WORK ORDER</v-subheader
+                  >
+                  <h3 class="h3-text">Complaint</h3>
+                  <p class="font-italic">Keluhan</p>
+                  <v-select
+                    :rules="[(v) => !!v || 'Required.']"
+                    v-model="editedItem.id_keluhan"
+                    :items="keluhanlist"
+                    item-text=""
+                    outlined
+                    dense
+                    item-value="id_keluhan"
+                  ></v-select>
+
+                  <h3 class="h3-text">Category</h3>
+                  <p class="font-italic">Kategori</p>
+                  <v-select
+                    dense
+                    :rules="[(v) => !!v || 'Required.']"
+                    v-model="editedItem.kategori"
+                    :items="kategoriitem"
+                    outlined
+                    item-text="state"
+                    item-value="abbr"
+                    persistent-hint
+                    return-object
+                    required
+                  ></v-select>
+
+                  <h3 class="h3-text">Work Order Description</h3>
+                  <p class="font-italic">Deskripsi Workorder</p>
+                  <v-textarea
+                    v-model="editedItem.deskripsi"
+                    required
+                    outlined
+                    dense
+                  ></v-textarea>
+                </v-col>
+                <v-col cols="12" md="6" sm="6">
+                  <v-subheader class="font-weight-bold"
+                    >TASK WORK ORDER</v-subheader
+                  >
+
+                  <h3 class="h3-text">Task Description</h3>
+                  <p class="font-italic">Deskripsi Tugas</p>
+                  <v-textarea
+                    v-model="editedItem.keterangan"
+                    name="input-7-1"
+                    label=""
+                    filled
+                    outlined
+                  ></v-textarea>
+                  <label class=""></label>
+                  <h3 class="h3-text">Deadline</h3>
+                  <p class="font-italic">Batas Waktu</p>
+                  <v-menu
+                    v-model="menu2"
+                    :close-on-content-click="false"
+                    :nudge-right="40"
+                    transition="scale-transition"
+                    offset-y
+                    min-width="auto"
+                  >
+                    <template v-slot:activator="{ on, attrs }">
+                      <v-text-field
+                        :rules="[(v) => !!v || 'Required.']"
+                        v-model="batas_waktu"
+                        append-icon="mdi-calendar"
+                        readonly
+                        outlined
+                        dense
+                        v-bind="attrs"
+                        v-on="on"
+                      ></v-text-field>
+                    </template>
+<v-date-picker v-model="batas_waktu" @input="menu2 = false"></v-date-picker>
+</v-menu>
+<label></label>
+<h3 class="h3-text">Attachment</h3>
+<p class="font-italic">Lampiran</p>
+
+<v-row>
+    <v-col v-for="image in editedItem.file_customer" :key="image.id" class="d-flex child-flex" cols="4">
+        <v-img :src="`/images/fileKeluhan/${image}`" class="grey lighten-2">
+            <template v-slot:placeholder>
+                          <v-row
+                            class="fill-height ma-0"
+                            align="center"
+                            justify="center"
+                          >
+                            <v-progress-circular
+                              indeterminate
+                              color="grey lighten-5"
+                            ></v-progress-circular>
+                          </v-row>
+                        </template>
+        </v-img>
+    </v-col>
+</v-row>
+
+<col />
+<div class="mt-6">
+    <v-btn color="primary" class="text-none" fab x-small depressed :loading="isSelecting" @click="onButtonClick">
+        <v-icon center> mdi-plus </v-icon>
+    </v-btn>
+    <input multiple small-chips ref="uploader" class="d-none" type="file" accept="image/*" @change="onFileChanged" />
+    <v-spacer />
+    <v-row class="mt-4">
+        <v-img width="100" height="100" v-for="(images, i) in selectedImages" :key="i" :src="images">
+            <template v-slot:default>
+                          <v-row class="mt-6" align="center" justify="center">
+                            <v-chip
+                              close
+                              color="white"
+                              outlined
+                              @click:close="deleteimg(i)"
+                            >
+                              remove
+                            </v-chip>
+                          </v-row>
+                        </template>
+        </v-img>
+    </v-row>
+</div>
+<!-- <div>{{ buttonText }}</div> -->
+<!-- <v-combobox :items="items" label="role" required>
+                    </v-combobox> -->
+</v-col>
+</v-row>
+</div>
+</v-card-text>
+<v-divider />
+<v-card-actions class="d-flex justify-center">
+    <v-btn width="30%" ref="modal-save" id="modal-save" color="primary" @click="save" rounded :disabled="!isValid">
+        Create
+    </v-btn>
+</v-card-actions>
+<sukses :alert="dialogsukses" :type="typealert" />
+</v-card>
+</v-form>
+</v-dialog>
+</div>
+</template>
+<script>
+    import {
+        mapActions,
+        mapGetters
+    } from "vuex";
+    import Sukses from "../alert/Sukses.vue";
+    export default {
+        props: ["type", "propsworkorder"],
+        components: {
+            Sukses
+        },
+        data: () => ({
+            chip1: true,
+            selectedFiles: [],
+            selectedImages: [],
+            isSelecting: false,
+            isValid: true,
+            kategoriitem: [
+                "Access User",
+                "Complaint Member",
+                "Development",
+                "Maintenance",
+                "Research",
+            ],
+            date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+                .toISOString()
+                .substr(0, 10),
+            batas_waktu: new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+                .toISOString()
+                .substr(0, 10),
+            menu: false,
+            menu2: false,
+            statusitem: ["In PROGRESS", "DONE"],
+            dialogsukses: false,
+            typealert: "Congratulations",
+            dialog: true,
+            dialogDelete: false,
+            rules: [
+                (value) => !!value || "Required.",
+                (value) =>
+                (value || "").length >= 8 ||
+                "password should have at least 8 characters",
+            ],
+            editedItem: {
+                batas_waktu: "",
+                date: "",
+                deskripsi: "",
+                kategori: "",
+                keterangan: "",
+                posisi: "",
+                status: "",
+                tipe: "",
+                file_customer: [],
+                id_workorder: [],
+                id_keluhan: [],
+                id_workspace: [],
+                id_customer: [],
+            },
+        }),
+
+        mounted() {
+            if (this.dialog == true) {
+                this.fetchWorkspace();
+                this.getKeluhanById();
+                this.fetchKeluhan();
+
+                console.log("type", this.type);
+                // this.editedItem = this.customer;
+                if (this.type == "Edit  Work Order") {
+                    this.selectedImages = [];
+                    this.WorkorderById(this.propsworkorder.id_workorder).then(
+                        (response) => {
+                            this.editedItem.file_customer = response.data.File_Workorder;
+                            this.editedItem.posisi = response.data.Workorder.posisi;
+                            this.editedItem.kategori = response.data.Workorder.kategori;
+                            console.log("reepson Wo", response);
+                        }
+                    );
+                    console.log("isifil worksoorder", this.propsworkorder);
+                    this.date = this.date;
+                    this.batas_waktu = this.batas_waktu;
+                    this.editedItem.deskripsi = this.propsworkorder.deskripsi;
+                    this.editedItem.kategori = this.propsworkorder.kategori;
+
+                    this.editedItem.status = this.propsworkorder.status;
+                    this.editedItem.tipe = this.propsworkorder.tipe;
+                    this.editedItem.id_workorder = this.propsworkorder.id_workorder;
+                    this.editedItem.id_keluhan = this.propsworkorder.keluhan.id_keluhan;
+                    this.editedItem.id_workspace =
+                        this.propsworkorder.workspace.id_workspace;
+                } else {
+                    console.log("fillkosong workspace");
+                    this.selectedImages = [];
+                    this.editedItem.file_customer = [];
+                    //   this.id_workspace = "";
+                    this.batas_waktu = "";
+                    this.date = "";
+                    this.editedItem.deskripsi = "";
+                    this.kategori = "";
+                    this.editedItem.keterangan = "";
+                    this.editedItem.posisi = "";
+                    this.editedItem.status = "";
+                    this.editedItem.tipe = "";
+                    this.editedItem.id_keluhan = "";
+                    this.editedItem.id_workspace = "";
+                }
+            }
+        },
+
+        computed: {
+            ...mapGetters("keluhan", ["keluhanbyidworkspace", "keluhanlist"]),
+            ...mapGetters("workspace", ["workspacelist"]),
+            formTitle() {
+                return this.type === "Create Work Order" ?
+                    "Create Work Order" :
+                    "Edit  Work Order";
+            },
+        },
+
+        methods: {
+            ...mapActions("keluhan", ["getKeluhanById", "fetchKeluhan"]),
+            ...mapActions("workspace", ["fetchWorkspace"]),
+            ...mapActions("customer", ["CustomersByidWorkspace"]),
+            ...mapActions("workorder", [
+                "addWorkorder",
+                "updateWorkorderByID",
+                "WorkorderById",
+            ]),
+            close() {
+                this.dialog = false;
+                let data = {
+                    type: "close",
+                };
+                this.$emit("success", data);
+            },
+            onButtonClick() {
+                this.isSelecting = true;
+                window.addEventListener(
+                    "focus",
+                    () => {
+                        this.isSelecting = false;
+                    }, {
+                        once: true
+                    }
+                );
+
+                this.$refs.uploader.click();
+            },
+
+            onFileChanged(e) {
+                // this.selectedFile = e.target.files[0];
+                this.selectedFiles.push(e.target.files);
+                var files = e.target.files || e.dataTransfer.files;
+
+                for (let index = 0; index < files.length; index++) {
+                    // const element = this.selectedFiles[index];
+                    console.log("this.selectedFiles ", files[index]);
+                    this.selectedImages.push(URL.createObjectURL(files[index]));
+                }
+            },
+            deleteimg(item) {
+                // this.selectedImages.pop(URL.createObjectURL(element));
+                // this.selectedImages.$remove(item);
+                this.selectedFiles.splice(item, 1);
+                this.selectedImages.splice(item, 1);
+                if (item == 0) {
+                    this.selectedFiles.push(item);
+                }
+            },
+
+            async save() {
+                // console.log("workorder list", this.workspacelist);
+                if (this.type == "Create Work Order") {
+                    let bs = new Date(this.batas_waktu),
+                        bulan = "" + (bs.getMonth() + 1),
+                        hari = "" + bs.getDate(),
+                        tahun = bs.getFullYear();
+                    if (bulan.length < 2) bulan = "0" + bulan;
+                    if (hari.length < 2) hari = "0" + hari;
+                    //inisiasi formdata
+                    let formData = new FormData();
+                    console.log("file apped 1", this.selectedFiles);
+                    //images looping
+
+                    for (const i of Object.keys(this.selectedFiles)) {
+                        formData.append("file", this.selectedFiles[i][0]);
+                        console.log("fil", this.selectedFiles[i][0]);
+                    }
+                    // console.log("file apped 2", file);
+
+                    //keluhanpart diubah menjadi stringify
+                    let string = JSON.stringify({
+                        batas_waktu: `${hari}-${bulan}-${tahun}`,
+                        deskripsi: this.editedItem.deskripsi,
+                        id_keluhan: {
+                            id_keluhan: this.editedItem.id_keluhan
+                        },
+                        id_workspace: {
+                            id_workspace: localStorage.getItem("myworkspace")
+                        },
+                        kategori: this.editedItem.kategori,
+                        keterangan: this.editedItem.keterangan,
+                        posisi: this.editedItem.posisi,
+                        status: "string",
+                        // tipe: this.editedItem.tipe,
+                    });
+                    ///setelah ituu di append
+                    formData.append("WorkorderPart", string);
+                    console.log("WorkorderPart", string);
+                    await this.addWorkorder(formData)
+                        .then((response) => {
+                            console.log("res worksorder", response);
+                            if (response.status == 200) {
+                                let data = {
+                                    type: "create",
+                                    status: true,
+                                };
+                                this.$emit("success", data);
+                            } else {
+                                let data = {
+                                    type: "create",
+                                    status: false,
+                                };
+                                this.$emit("success", data);
+                            }
+                        })
+                        .catch((err) => {});
+                } else {
+                    let bs = new Date(this.batas_waktu),
+                        bulan = "" + (bs.getMonth() + 1),
+                        hari = "" + bs.getDate(),
+                        tahun = bs.getFullYear();
+                    if (bulan.length < 2) bulan = "0" + bulan;
+                    if (hari.length < 2) hari = "0" + hari;
+                    let formData = new FormData();
+                    console.log("file apped 1", this.selectedFiles);
+                    //images looping
+
+                    for (const i of Object.keys(this.selectedFiles)) {
+                        formData.append("files", this.selectedFiles[i][0]);
+                        console.log("fil", this.selectedFiles[i][0]);
+                    }
+
+                    let string = JSON.stringify({
+                        batas_waktu: `${hari}-${bulan}-${tahun}`,
+                        deskripsi: this.editedItem.deskripsi,
+                        id_keluhan: {
+                            id_keluhan: this.editedItem.id_keluhan
+                        },
+                        id_workspace: {
+                            id_workspace: localStorage.getItem("myworkspace")
+                        },
+                        kategori: this.editedItem.kategori,
+                        keterangan: this.editedItem.keterangan,
+                        posisi: this.editedItem.posisi,
+                        // tipe: this.editedItem.tipe,
+                    });
+                    ///setelah ituu di append
+                    formData.append("workorderPart", string);
+                    console.log("WorkorderPart", string);
+                    let id = this.propsworkorder.id_workorder;
+                    formData.append("id_workorder", id);
+                    console.log("id work", id);
+
+                    await this.updateWorkorderByID(formData)
+                        .then((response) => {
+                            console.log("res", response.status);
+                            if (response.status == 200) {
+                                let data = {
+                                    type: "create",
+                                    status: true,
+                                };
+                                this.$emit("success", data);
+                            } else {
+                                let data = {
+                                    type: "create",
+                                    status: false,
+                                };
+                                this.$emit("success", data);
+                            }
+                        })
+                        .catch((err) => {});
+                }
+            },
+        },
+    };
+</script>
+<style scoped>
+    .rounded-card {
+        border-radius: 30px;
+    }
+</style>
